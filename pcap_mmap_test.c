@@ -1,5 +1,4 @@
 #include "pcap.h"
-#include <stdio.h>
 
 int main()
 {
@@ -20,17 +19,26 @@ int main()
 
     int i = 5;
 
-    int sign = p_mmap_file_addr(pcap_file_name, &p_mmap, MMAP_PAGE_SIZE);
+    int fd = p_mmap_file_addr(pcap_file_name);
 
-    if (sign == 0) {
-        p_mmap_write_file_header(&p_mmap);
-        while(i--) {
-            p_mmap_write_packet_header(&p_mmap, 102);
-            // p_mmap_write_packet_data(&p_mmap, data, 102);
-        }
+    if (fd != -1) {
+        p_mmap_write_file_header(fd);
+        // while(i--) {
+        p_mmap_write_packet_header(fd, 102);
+        // p_mmap_write_packet_data(fd, data, 102);
+        // }
 
-        // p_munmap(p_mmap, MMAP_PAGE_SIZE);
+        close(fd);
     }
+
+    // int fd = pcap_file_open(pcap_file_name);
+    // if (fd != -1) {
+    //     pcap_write_file_header(fd);
+    //     while (i--) {
+    //         // pcap_write_packet_header(fd, 102);
+    //         // pcap_write_packet_data(fd, data, 102);
+    //     }
+    // }
 
     return 0;
 }

@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <string.h>
+#include<sys/stat.h>
 // #include <stdlib.h>
 
 #define TCPDUMP_MAGIC   0xa1b2c3d4
@@ -50,16 +51,16 @@ struct pcap_packet_header {
 };
 
 int
-p_mmap_file_addr(const char *path, void **p_mmap, int page_length);
+p_mmap_file_addr(const char *path);
 
 void
-p_mmap_write_file_header(void **p_mmap);
+p_mmap_write_file_header(int fd);
 
 void
-p_mmap_write_packet_header(void **p_mmap, int data_len);
+p_mmap_write_packet_header(int fd, int data_len);
 
 void
-p_mmap_write_packet_data(void **p_mmap, const unsigned char *data, int data_len);
+p_mmap_write_packet_data(int fd, const unsigned char *data, int data_len);
 
 void
 p_munmap(void *p_mmap, int page_length);
