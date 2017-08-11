@@ -1,3 +1,4 @@
 *.o
+*.pcap
 output/
 pcap_mmap_test

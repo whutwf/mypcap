@@ -39,26 +39,27 @@ p_mmap_write_file_header(int fd)
         return;
     }
 
-    struct pcap_file_header *p_mmap;
+    void *p_mmap;
     int before_fsize;
     int current_fsize;
 
     unsigned int file_header_size = sizeof(struct pcap_file_header);
+    struct pcap_file_header head;
+    head.magic = TCPDUMP_MAGIC;
+    head.version_major = PCAP_VERSION_MAJOR;
+    head.version_minor = PCAP_VERSION_MINOR;
+    head.thiszone = 0;
+    head.sigfigs = 0;
+    head.snaplen = PCAP_SNAPLEN;
+    head.linktype = PCAP_LINKTYPE;
+
     before_fsize = p_mmap_ftruncate(fd, file_header_size);
     current_fsize = before_fsize + file_header_size;
-    p_mmap = (struct pcap_file_header *)mmap(0, current_fsize, PROT_READ | PROT_WRITE,
-             MAP_SHARED, fd, 0);
+    p_mmap = mmap(0, current_fsize, PROT_READ | PROT_WRITE,
+                  MAP_SHARED, fd, 0);
     p_mmap += before_fsize;
 
-    p_mmap->magic = TCPDUMP_MAGIC;
-    p_mmap->version_major = PCAP_VERSION_MAJOR;
-    p_mmap->version_minor = PCAP_VERSION_MINOR;
-    p_mmap->thiszone = 0;
-    p_mmap->sigfigs = 0;
-    p_mmap->snaplen = PCAP_SNAPLEN;
-    p_mmap->linktype = PCAP_LINKTYPE;
-
-    printf("%d\n", p_mmap->thiszone);
+    memcpy(p_mmap, &head, file_header_size);
     munmap(p_mmap, current_fsize);
 }
 
@@ -69,26 +70,27 @@ p_mmap_write_packet_header(int fd, int data_len)
         return;
     }
 
-    struct pcap_packet_header *p_mmap;
+    void *p_mmap;
     int before_fsize;
     int current_fsize;
 
-    struct timeval tv;
     unsigned int phead_size = sizeof(struct pcap_packet_header);
+    struct pcap_packet_header phead;
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    phead.tv_sec = tv.tv_sec;
+    phead.tv_usec = tv.tv_usec;
+    phead.caplen = data_len;
+    phead.len = phead.caplen;
 
     before_fsize = p_mmap_ftruncate(fd, phead_size);
     current_fsize = before_fsize + phead_size;
-    p_mmap = (struct pcap_packet_header *)mmap(0, current_fsize, PROT_READ | PROT_WRITE,
-             MAP_SHARED, fd, 0);
+    p_mmap = mmap(0, current_fsize, PROT_READ | PROT_WRITE,
+                  MAP_SHARED, fd, 0);
     p_mmap += before_fsize;
 
-
-    gettimeofday(&tv, NULL);
-    p_mmap->tv_sec = tv.tv_sec;
-    p_mmap->tv_usec = tv.tv_usec;
-    p_mmap->caplen = data_len;
-    p_mmap->len = data_len;
-
+    memcpy(p_mmap, &phead, phead_size);
     munmap(p_mmap, current_fsize);
 }
 void
@@ -98,14 +100,14 @@ p_mmap_write_packet_data(int fd, const unsigned char *data, int data_len)
         return;
     }
 
-    char *p_mmap;
+    void *p_mmap;
     int before_fsize;
     int current_fsize;
 
     before_fsize = p_mmap_ftruncate(fd, data_len);
     current_fsize = before_fsize + data_len;
-    p_mmap = (char *)mmap(0, current_fsize, PROT_READ | PROT_WRITE,
-                          MAP_SHARED, fd, 0);
+    p_mmap = mmap(0, current_fsize, PROT_READ | PROT_WRITE,
+                  MAP_SHARED, fd, 0);
     p_mmap += before_fsize;
 
     memcpy(p_mmap, data, data_len);
