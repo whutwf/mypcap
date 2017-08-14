@@ -1,0 +1,6 @@
+*.o
+*.pcap
+output/
+pcap_mmap_test
+.vscode
+./sock_op/test*.c

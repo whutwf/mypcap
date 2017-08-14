@@ -1,41 +1,48 @@
 #include "pcap.h"
 
+/**
+ * 扩展文件大小
+ * @return int 之前文件的大小
+ */
+static int
+p_mmap_ftruncate(int fd, int length)
+{
+    int size = 0;
+    struct stat sta;
+
+    //得到文件大小，文件记录条数
+    fstat(fd, &sta);
+    size = sta.st_size;
+    fprintf(stdout, "file size is %d\n", size);
+    ftruncate(fd, size + length);
+
+    return size;
+}
+
 int
-p_mmap_file_addr(const char *path, void **p_mmap, int page_length)
+p_mmap_file_addr(const char *path)
 {
     int fd;
     size_t n;
-    if ((fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0644)) < 0) {
+    if ((fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0666)) < 0) {
         fprintf(stderr, "Error: open file failed: (errno = %d) %s\n", errno, strerror(errno));
         return -1;
     }
 
-    n = write(fd, "\0", 1);
-    if (n < 0) {
-        fprintf(stderr, "Error: Init to write mmap file failed: (errno = %d) %s\n", errno, strerror(errno));
-        return -2;
-    }
-
-    p_mmap = mmap(0, page_length, PROT_READ | PROT_WRITE, MAP_SHARED,fd, 0);
-    if (p_mmap == MAP_FAILED) {
-        fprintf(stderr, "Error: mmap file failed: (errno = %d) %s\n", errno, strerror(errno));
-        close(fd);
-        return -3;
-    }
-
-    close(fd);
-    fprintf(stdout, "mmaped file to memory, size = %d\n", page_length);
-
-    return 0;
+    return fd;
 }
 
 void
-p_mmap_write_file_header(void **p_mmap)
+p_mmap_write_file_header(int fd)
 {
-    if (p_mmap == NULL) {
-        fprintf(stderr, "Error: the p_mmap point is null\n");
+    if (fd == -1) {
         return;
     }
+
+    void *p_mmap;
+    int before_fsize;
+    int current_fsize;
+
     unsigned int file_header_size = sizeof(struct pcap_file_header);
     struct pcap_file_header head;
     head.magic = TCPDUMP_MAGIC;
@@ -46,23 +53,26 @@ p_mmap_write_file_header(void **p_mmap)
     head.snaplen = PCAP_SNAPLEN;
     head.linktype = PCAP_LINKTYPE;
 
+    before_fsize = p_mmap_ftruncate(fd, file_header_size);
+    current_fsize = before_fsize + file_header_size;
+    p_mmap = mmap(0, current_fsize, PROT_READ | PROT_WRITE,
+                  MAP_SHARED, fd, 0);
+    p_mmap += before_fsize;
 
-    fprintf(stdout, "file header, size = %d\n", file_header_size);
-    // // msync
-    memset(&head, 0, file_header_size);
-    memcpy(&p_mmap, &head, file_header_size);
-
-    p_mmap += file_header_size;
-
+    memcpy(p_mmap, &head, file_header_size);
+    munmap(p_mmap, current_fsize);
 }
 
 void
-p_mmap_write_packet_header(void **p_mmap, int data_len)
+p_mmap_write_packet_header(int fd, int data_len)
 {
-    if (p_mmap == NULL) {
-        fprintf(stderr, "Error: the p_mmap point is null\n");
+    if (fd == -1) {
         return;
     }
+
+    void *p_mmap;
+    int before_fsize;
+    int current_fsize;
 
     unsigned int phead_size = sizeof(struct pcap_packet_header);
     struct pcap_packet_header phead;
@@ -74,25 +84,32 @@ p_mmap_write_packet_header(void **p_mmap, int data_len)
     phead.caplen = data_len;
     phead.len = phead.caplen;
 
-    memset(&phead, 0, phead_size);
-    memcpy(&p_mmap, &phead, phead_size);
-    p_mmap += phead_size;
+    before_fsize = p_mmap_ftruncate(fd, phead_size);
+    current_fsize = before_fsize + phead_size;
+    p_mmap = mmap(0, current_fsize, PROT_READ | PROT_WRITE,
+                  MAP_SHARED, fd, 0);
+    p_mmap += before_fsize;
+
+    memcpy(p_mmap, &phead, phead_size);
+    munmap(p_mmap, current_fsize);
 }
 void
-p_mmap_write_packet_data(void **p_mmap, const unsigned char *data, int data_len)
+p_mmap_write_packet_data(int fd, const unsigned char *data, int data_len)
 {
-    if (p_mmap == NULL) {
-        fprintf(stderr, "Error: the p_mmap point is null\n");
+    if (fd == -1) {
         return;
     }
 
-    memset(data, 0, data_len);
-    memcpy(&p_mmap, data, data_len);
-    p_mmap += data_len;
-}
+    void *p_mmap;
+    int before_fsize;
+    int current_fsize;
 
-void
-p_munmap(void *p_mmap, int page_length)
-{
-    munmap(p_mmap, page_length);
+    before_fsize = p_mmap_ftruncate(fd, data_len);
+    current_fsize = before_fsize + data_len;
+    p_mmap = mmap(0, current_fsize, PROT_READ | PROT_WRITE,
+                  MAP_SHARED, fd, 0);
+    p_mmap += before_fsize;
+
+    memcpy(p_mmap, data, data_len);
+    munmap(p_mmap, current_fsize);
 }
