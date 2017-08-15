@@ -1,7 +1,7 @@
 CC=gcc
 CXX=g++
 RM=-rm -f
-OUTDIR = ./output
+OUTDIR = ../output
 
 source = $(wildcard *.c)
 object = $(patsubst %.c, $(OUTDIR)/%.o, $(source))

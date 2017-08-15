@@ -3,11 +3,13 @@
 void
 add_ifi_info(const char *ifi_name, struct sockaddr *ifi_addr, struct ifi_info **head)
 {
+    // fprintf(stdout, "name = [%s]\n" , ifi_name);
+    // fprintf(stdout, "local addr = [%s]\n" ,inet_ntoa(((struct sockaddr_in*)(ifi_addr))->sin_addr));
     if (ifi_addr == NULL || ifi_name == NULL) {
         fprintf(stderr, "Error: ifi_addr is NULL or ifi_name is NULL\n");
         return;
     }
-    
+
     struct ifi_info *ifi_info_ptr = calloc(1, sizeof(struct ifi_info));
     if (ifi_info_ptr == NULL) {
         fprintf(stderr, "Error: can't create ifi_info node\n");
@@ -20,7 +22,8 @@ add_ifi_info(const char *ifi_name, struct sockaddr *ifi_addr, struct ifi_info **
         fprintf(stderr, "Error: can't create ifi_info_ptr->ifi_addr member\n");
         return;
     }
-    ifi_info_ptr->ifi_addr = ifi_addr;
+    memcpy(ifi_info_ptr->ifi_addr, ifi_addr, sizeof(struct sockaddr_in));
+    // ifi_info_ptr->ifi_addr = ifi_addr;   //赋值指针有问题，后边想想
     ifi_info_ptr->ifi_next = *head;
     *head = ifi_info_ptr;
 }
@@ -39,6 +42,20 @@ print_ifi_info(struct ifi_info *head)
         fprintf(stdout, "local addr = [%s]\n" ,inet_ntoa(((struct sockaddr_in*)(ptr->ifi_addr))->sin_addr));
         ptr = ptr->ifi_next;
 
+    }
+}
+
+void
+free_ifi_info(struct ifi_info *head)
+{
+    struct ifi_info *ifi, *ifi_next;
+
+    for (ifi = head; ifi != NULL; ifi = ifi_next) {
+        if (ifi->ifi_addr != NULL) {
+            free(ifi->ifi_addr);
+        }
+        ifi_next = ifi->ifi_next;
+        free(ifi);
     }
 }
 

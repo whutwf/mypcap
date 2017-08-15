@@ -31,6 +31,9 @@ void
 add_ifi_info(const char *ifi_name, struct sockaddr *ifi_addr, struct ifi_info **head);
 
 void
+free_ifi_info(struct ifi_info *head);
+
+void
 print_ifi_info(struct ifi_info *head);
 
 #ifdef __cplusplus

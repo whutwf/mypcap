@@ -8,6 +8,7 @@ int main()
     }
 
     print_ifi_info(head);
-    
+    free_ifi_info(head);
+
     return 0;
 }
