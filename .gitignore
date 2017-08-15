@@ -3,10 +3,10 @@
 output/
 
 pcap_mmap_test
+sock_op_test
+
 .vscode
 ./sock_op/test1.c
 ./sock_op/test2.c
 ./sock_op/test3.c
-
-pcap_mmap_test
 
