@@ -24,14 +24,20 @@ extern "C" {
 #include <sys/mman.h>
 #include <string.h>
 #include<sys/stat.h>
-// #include <stdlib.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include<netpacket/packet.h>
 
-#define TCPDUMP_MAGIC   0xa1b2c3d4
+#define TCPDUMP_MAGIC       0xa1b2c3d4
 #define PCAP_VERSION_MAJOR  2
 #define PCAP_VERSION_MINOR  4
-#define PCAP_LINKTYPE	1
-#define PCAP_SNAPLEN	0x0000ffff	//逆序记载0xffff0000
-#define MMAP_PAGE_SIZE	65535
+#define PCAP_LINKTYPE	    1
+#define PCAP_SNAPLEN	    0x0000ffff	//逆序记载0xffff0000
+#define MMAP_PAGE_SIZE	    65535
+#define RECV_BUFFER_SIZE    2048
 
 struct pcap_file_header {
     unsigned int magic;
@@ -50,6 +56,30 @@ struct pcap_packet_header {
     unsigned int len;		/* length this packet (off wire) */
 };
 
+unsigned int
+pcap_file_open(const char *pcap_file_name);
+
+unsigned int
+pcap_write_file_header(unsigned int fd);
+
+unsigned int
+pcap_write_packet_header(unsigned int fd, unsigned int data_len);
+
+unsigned int
+pcap_write_packet_data(unsigned int fd, const unsigned char *data, unsigned int data_len);
+
+inline void
+pcap_file_close(unsigned int fd)
+{
+    close(fd);
+}
+
+int
+ethernet_data_fetch(unsigned char *buffer, const char *eth_name, const char *pcap_file_name);
+
+void
+buf_print(const char *buf, int n);
+
 int
 p_mmap_file_addr(const char *path);
 
@@ -65,21 +95,6 @@ p_mmap_write_packet_data(int fd, const unsigned char *data, int data_len);
 void
 p_munmap(void *p_mmap, int page_length);
 
-
-unsigned int
-pcap_file_open(const char *pcap_file_name);
-
-unsigned int
-pcap_write_file_header(unsigned int fd);
-
-unsigned int
-pcap_write_packet_header(unsigned int fd, unsigned int data_len);
-
-unsigned int
-pcap_write_packet_data(unsigned int fd, const unsigned char *data, unsigned int data_len);
-
-void
-pcap_file_close(unsigned int fd);
 
 #ifdef __cplusplus
 }
