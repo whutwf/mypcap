@@ -28,7 +28,7 @@ pcap_write_file_header(unsigned int fd)
     head.linktype = PCAP_LINKTYPE;
 
     if (write(fd, &head, file_header_size) !=file_header_size) {
-        fprintf(stderr, "write file header fail\n");
+        perror("Error: write file header\n");
         return -1;
     }
 
@@ -49,7 +49,7 @@ pcap_write_packet_header(unsigned int fd, unsigned int data_len)
     phead.len = phead.caplen;
 
     if (write(fd, &phead, phead_size) != phead_size) {
-        fprintf(stderr, "write pacaket header fail\n");
+        perror("Error: write pacaket header\n");
         return -1;
     }
 
@@ -60,7 +60,7 @@ unsigned int
 pcap_write_packet_data(unsigned int fd, const unsigned char *data, unsigned int data_len)
 {
     if (write(fd, data, data_len) != data_len) {
-        fprintf(stderr, "write pacaket data fail\n");
+        perror("Error: write pacaket data\n");
         return -1;
     }
     return 0;
@@ -102,6 +102,7 @@ ethernet_bind(const char *eth_name)
         perror("Error: receive data sock create\n");
         return -1;
     } else {
+        bzero(&saddr_ll, sizeof(saddr_ll));
         memcpy(ethreq.ifr_name, eth_name, strlen(eth_name));
         ethernet_set_misc(sockfd, &ethreq, eth_name);
         if(ioctl(sockfd, SIOCGIFINDEX, &ethreq) < 0) {
@@ -130,14 +131,14 @@ ethernet_data_fetch(unsigned char *recv_buffer, const char *eth_name, const char
         return -1;
     } else {
         int recv_length = 0;
-        int filefd = p_mmap_file_addr(pcap_file_name);
+        int filefd = pcap_file_open(pcap_file_name);
 
         if (filefd > 0) {
-            p_mmap_write_file_header(filefd);
+            pcap_write_file_header(filefd);
             while (1) {
                 recv_length = recvfrom(sockfd, recv_buffer, RECV_BUFFER_SIZE, 0, NULL, NULL);
-                p_mmap_write_packet_header(filefd, recv_length);
-                p_mmap_write_packet_data(filefd, recv_buffer, recv_length);
+                pcap_write_packet_header(filefd, recv_length);
+                pcap_write_packet_data(filefd, recv_buffer, recv_length);
 
                 buf_print(recv_buffer, recv_length);
             }

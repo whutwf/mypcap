@@ -13,7 +13,6 @@ p_mmap_ftruncate(int fd, int length)
     //得到文件大小，文件记录条数
     fstat(fd, &sta);
     size = sta.st_size;
-    fprintf(stdout, "file size is %d\n", size);
     ftruncate(fd, size + length);
 
     return size;
