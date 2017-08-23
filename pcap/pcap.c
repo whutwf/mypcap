@@ -1,7 +1,7 @@
 #include "pcap.h"
 
 unsigned int
-pcap_file_open(const char *pcap_file_name)
+pcap_file_create(const char *pcap_file_name)
 {
     unsigned int fd = open(pcap_file_name, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd == -1) {
@@ -12,13 +12,13 @@ pcap_file_open(const char *pcap_file_name)
 }
 
 unsigned int
-pcap_write_file_header(unsigned int fd)
+pcap_write_file_hdr(unsigned int fd)
 {
     if (fd == -1) {
         return -1;
     }
-    unsigned int file_header_size = sizeof(struct pcap_file_header);
-    struct pcap_file_header head;
+    unsigned int file_header_size = sizeof(struct pcap_file_hdr);
+    struct pcap_file_hdr head;
     head.magic = TCPDUMP_MAGIC;
     head.version_major = PCAP_VERSION_MAJOR;
     head.version_minor = PCAP_VERSION_MINOR;
@@ -36,10 +36,10 @@ pcap_write_file_header(unsigned int fd)
 }
 
 unsigned int
-pcap_write_packet_header(unsigned int fd, unsigned int data_len)
+pcap_write_packet_hdr(unsigned int fd, unsigned int data_len)
 {
-    unsigned int phead_size = sizeof(struct pcap_packet_header);
-    struct pcap_packet_header phead;
+    unsigned int phead_size = sizeof(struct pcap_packet_hdr);
+    struct pcap_packet_hdr phead;
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
@@ -64,6 +64,55 @@ pcap_write_packet_data(unsigned int fd, const unsigned char *data, unsigned int 
         return -1;
     }
     return 0;
+}
+
+int pcap_parser(const unsigned char *data)
+{
+    if (data == NULL) {
+        perror("[PCAP] Error: data to parse is null\n");
+        return -1;
+    }
+    struct ethernet_hdr *eth_hdr;
+    struct ipv4_hdr *ip_hdr;
+    struct tcp_hdr *tcp_hdr;
+    struct udp_hdr *udp_hdr;
+    struct icmp_hdr *icmp_hdr;
+
+    eth_hdr = (struct ethernet_hdr *)data;
+    eth_hdr->eth_proto = ntohs(eth_hdr->eth_proto);
+    switch (eth_hdr->eth_proto) {
+    case 0x0800:
+        ip_hdr = (struct ipv4_hdr *)(data + sizeof(struct ethernet_hdr));
+        if (ip_hdr->ip_proto == IPPROTO_TCP) {
+            tcp_hdr = (struct tcp_hdr *)(data + sizeof(struct ethernet_hdr) + sizeof(struct ipv4_hdr));
+            fprintf(stdout, "%d.%d.%d.%d\t%d.%d.%d.%d\t%d\t",
+                    NIPQUAD(ip_hdr->ip_dst), NIPQUAD(ip_hdr->ip_src), ntohs(ip_hdr->ip_len));
+            fprintf(stdout, "%u\t%u\t%d\t\n",
+                    ntohl(tcp_hdr->seq_num), ntohl(tcp_hdr->ack_num),ntohs(tcp_hdr->window));
+        } else if (ip_hdr->ip_proto == IPPROTO_UDP) {
+            udp_hdr = (struct udp_hdr *)(data + sizeof(struct ethernet_hdr) + sizeof(struct ipv4_hdr));
+        } else if (ip_hdr->ip_proto == IPPROTO_ICMP) {
+            icmp_hdr = (struct icmp_hdr *)(data + sizeof(struct ethernet_hdr) + sizeof(struct ipv4_hdr));
+        }
+        break;
+    case 0x0806:
+        break;
+    default:
+        break;
+    }
+    return 0;
+}
+
+void
+pcap_file_hdr_print(struct pcap_file_hdr *pf_hdr)
+{
+    fprintf (stdout, "magic number = %x\n", pf_hdr->magic);
+    fprintf (stdout, "version_major = %u\n", pf_hdr->version_major);
+    fprintf (stdout, "version_minor = %u\n", pf_hdr->version_minor);
+    fprintf (stdout, "thiszone = %d\n", pf_hdr->thiszone);
+    fprintf (stdout, "sigfigs = %u\n", pf_hdr->sigfigs);
+    fprintf (stdout, "snaplen = %u\n", pf_hdr->snaplen);
+    fprintf (stdout, "linktype = %u\n", pf_hdr->linktype);
 }
 
 static void ethernet_set_misc(int sockfd, struct ifreq *ethreq, const char *eth_name) {
@@ -131,13 +180,13 @@ ethernet_data_fetch(unsigned char *recv_buffer, const char *eth_name, const char
         return -1;
     } else {
         int recv_length = 0;
-        int filefd = pcap_file_open(pcap_file_name);
+        int filefd = pcap_file_create(pcap_file_name);
 
         if (filefd > 0) {
-            pcap_write_file_header(filefd);
+            pcap_write_file_hdr(filefd);
             while (1) {
                 recv_length = recvfrom(sockfd, recv_buffer, RECV_BUFFER_SIZE, 0, NULL, NULL);
-                pcap_write_packet_header(filefd, recv_length);
+                pcap_write_packet_hdr(filefd, recv_length);
                 pcap_write_packet_data(filefd, recv_buffer, recv_length);
 
                 buf_print(recv_buffer, recv_length);

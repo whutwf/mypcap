@@ -40,8 +40,15 @@ extern "C" {
 #define MMAP_PAGE_SIZE	    65535
 #define RECV_BUFFER_SIZE    2048
 
+/**32进制IP转化，可以用 char* inet_ntoa(struct in_addr addr) */
+#define NIPQUAD(addr) \
+		((unsigned char *)&addr)[0], \
+		((unsigned char *)&addr)[1], \
+		((unsigned char *)&addr)[2], \
+		((unsigned char *)&addr)[3]
+
 /**---------pcap file struct using--------- */
-struct pcap_file_header {
+struct pcap_file_hdr {
     unsigned int magic;
     unsigned short version_major;
     unsigned short version_minor;
@@ -51,7 +58,7 @@ struct pcap_file_header {
     unsigned int linktype;	/* data link type (LINKTYPE_*) */
 };
 
-struct pcap_packet_header {
+struct pcap_packet_hdr {
     unsigned int tv_sec;        /* Seconds. */
     unsigned int tv_usec;  /* Microseconds. */
     unsigned int caplen;		/* length of portion present */
@@ -110,11 +117,11 @@ struct icmp_hdr {
     uint16_t sequence;
 };
 
-unsigned int pcap_file_open(const char *pcap_file_name);
+unsigned int pcap_file_create(const char *pcap_file_name);
 
-unsigned int pcap_write_file_header(unsigned int fd);
+unsigned int pcap_write_file_hdr(unsigned int fd);
 
-unsigned int pcap_write_packet_header(unsigned int fd, unsigned int data_len);
+unsigned int pcap_write_packet_hdr(unsigned int fd, unsigned int data_len);
 
 unsigned int pcap_write_packet_data(unsigned int fd, const unsigned char *data, unsigned int data_len);
 
@@ -123,7 +130,8 @@ inline void pcap_file_close(unsigned int fd)
     close(fd);
 }
 
-// void pcap_file_hdr_print(struct pcap_hdr_s *)
+int pcap_parser(const unsigned char *data);
+void pcap_file_hdr_print(struct pcap_file_hdr *pf_hdr);
 
 int ethernet_data_fetch(unsigned char *buffer, const char *eth_name, const char *pcap_file_name);
 
